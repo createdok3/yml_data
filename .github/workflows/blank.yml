@@ -1,0 +1,24 @@
+name: Get Ubuntu 18.04 Offline Packages
+
+on:
+  workflow_dispatch: # Allows you to manually click "Run workflow"
+
+jobs:
+  fetch-deb-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Use Ubuntu 18.04 Docker to download packages
+        run: |
+          mkdir -p offline_debs
+          # Spin up a temporary 18.04 container, map the folder, and download the files
+          docker run --rm -v ${{ github.workspace }}/offline_debs:/packages ubuntu:18.04 bash -c "\
+            apt-get update && \
+            cd /packages && \
+            apt-get download libtinfo5 libncurses5 libncursesw5"
+
+      - name: Upload .deb files as an Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-18.04-offline-libraries
+          path: offline_debs/*.deb
