@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       package_name:
-        description: 'Package to download (e.g., uvicorn, rich, fastapi)'
+        description: 'Package & optional version (e.g., requests, uvicorn==0.23.2)'
         required: true
         default: 'requests'
       python_version:
@@ -22,19 +22,26 @@ jobs:
       - name: Setup Specific Python Version
         uses: actions/setup-python@v5
         with:
-          python-version: '${{ github.event.inputs.python_version }}'
+          python-version: '${{ inputs.python_version }}'
 
       - name: Create Payload Directory
         run: mkdir -p payload/offline_packages
 
+      - name: Sanitize Artifact Name
+        run: |
+          # Replaces '==' with '-' so the downloaded zip has a clean filename
+          CLEAN_NAME=$(echo "${{ inputs.package_name }}" | sed 's/==/-/g')
+          echo "SAFE_PKG_NAME=$CLEAN_NAME" >> $GITHUB_ENV
+
       - name: Download Target Package
         run: |
           python -m pip install --upgrade pip
-          pip download ${{ github.event.inputs.package_name }} -d payload/offline_packages --platform ${{ github.event.inputs.os_type }} --only-binary=:all:
+          # Quotes added around the package name to safely handle the '==' characters in bash
+          pip download "${{ inputs.package_name }}" -d payload/offline_packages --platform ${{ inputs.os_type }} --only-binary=:all:
 
       - name: Upload Dynamic Offline Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: offline-${{ github.event.inputs.package_name }}-${{ github.event.inputs.os_type }}
+          name: offline-${{ env.SAFE_PKG_NAME }}-${{ inputs.os_type }}
           path: payload/
           retention-days: 1
